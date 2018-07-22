@@ -18,7 +18,8 @@
 // Object for Transceiver is named Radio,
 // use of RadioHead Libary here
 //
-static RH_RF22 radio;
+RHHardwareSPI spi;
+static RH_RF22 radio = RH_RF22(pinNSEL, pinNIRQ, spi);
 static MENU menu;
 int returnKey = 0;
 
@@ -69,7 +70,11 @@ bool getSerial(uint8_t *const whereTo, const uint16_t n, const unsigned long int
     }
 
     whereTo[i] = Serial.read();
-    if(whereTo[i] == '\r' || whereTo[i] == '\n') returnKey++;
+    if(whereTo[i] == '\n' || whereTo[i] == '\r') {
+      returnKey++;
+    } else {
+      returnKey = 0;
+    }
     if(returnKey > 3) return false;
   }
 
@@ -94,30 +99,65 @@ bool radioInit() {
     digitalWrite(pinLedError, LOW);
     digitalWrite(pinLedHB, LOW);
 
-    const RH_RF22::ModemConfig cfg = {
-      // Register 0x1D:
-      // BW         CR      0=explicit
-      (8 << 4) | (4 << 1) | (0 << 0),
-      // Register 0x1E:
-      // SF       CRC enable
-      (10 << 4) | (1 << 2),
-      // Register 0x26:
-      // bit3 = LowDataRateOptimization
-      (0 << 3)
+    const RH_RF22::ModemConfig FSK9k6 = {
+      0x2B, //reg_1c
+      0x03, //reg_1f
+      0x41, //reg_20
+      0x60, //reg_21
+      0x27, //reg_22
+      0x52, //reg_23
+      0x00, //reg_24
+      0x9F, //reg_25
+      0x2C, //reg_2c - Only matters for OOK mode
+      0x11, //reg_2d - Only matters for OOK mode
+      0x2A, //reg_2e - Only matters for OOK mode
+      0x80, //reg_58
+      0x60, //reg_69
+      0x4E, //reg_6e
+      0xA4, //reg_6f
+      0x24, //reg_70
+      0x22, //reg_71
+      0x01  //reg_72
     };
-    radio.setModemRegisters(&cfg);
+    const RH_RF22::ModemConfig FSK1k2 = {
+      0x2B, //reg_1c
+      0x03, //reg_1f
+      0x41, //reg_20
+      0x60, //reg_21
+      0x27, //reg_22
+      0x52, //reg_23
+      0x00, //reg_24
+      0x9F, //reg_25
+      0x2C, //reg_2c - Only matters for OOK mode
+      0x11, //reg_2d - Only matters for OOK mode
+      0x2A, //reg_2e - Only matters for OOK mode
+      0x80, //reg_58
+      0x60, //reg_69
+      0x09, //reg_6e
+      0xD5, //reg_6f
+      0x24, //reg_70
+      0x22, //reg_71
+      0x01  //reg_72
+    };
+    radio.setModemRegisters(&FSK9k6);
+    //radio.setModemRegisters(&FSK1k2);
     radio.setPreambleLength(8);
+    delay(250);
     return true;
+  } else {
+    Serial.println("Radio could not initialized!");
   }
   return false;
 }
 
 bool radioReset() {
+  returnKey = 0;
   return radioInit();
 }
 
 bool radioFrequency(float qrg) {
   radio.setFrequency(qrg);
+  delay(250);
   return true;
 }
 
@@ -130,6 +170,8 @@ void setup() {
   // the arduino talks with 9600bps to the linux system
   Serial.begin(9600);
 
+  Serial.println("Running setup()");
+
   pinMode(pinLedRecv, OUTPUT);
   digitalWrite(pinLedRecv, HIGH);
   pinMode(pinLedSend, OUTPUT);
@@ -138,7 +180,11 @@ void setup() {
   digitalWrite(pinLedError, HIGH);
   pinMode(pinLedHB, OUTPUT);
   digitalWrite(pinLedHB, HIGH);
-
+  
+  radio.setModeIdle();
+  radio.setFrequency(433.000);
+  radio.setTxPower(RH_RF22_RF23BP_TXPOW_30DBM);
+  
   menu.execute();
   k.qrg(menu.get_rx(), menu.get_tx());
 
@@ -154,8 +200,13 @@ void loop() {
   k.loop();
 
   if(returnKey > 3) {
-    menu.execute();
+  //if(false) {
+    digitalWrite(pinLedHB, HIGH);
+    digitalWrite(pinLedRecv, HIGH);
+    digitalWrite(pinLedSend, HIGH);
+    digitalWrite(pinLedError, HIGH);
     returnKey = 0;
+    menu.execute();
     k.qrg(menu.get_rx(), menu.get_tx());
     if (!radioReset())
       k.debug("Radio init failed");
@@ -169,6 +220,8 @@ void loop() {
     digitalWrite(pinLedHB, state ? HIGH : LOW);
     state = !state;
     pHB = now;
+    //Serial.print("RSSI: ");
+    //Serial.println(radio.rssiRead());
   }
 }
 

@@ -134,6 +134,7 @@ void kiss::debug(const char *const t) {
 #ifdef UNITTEST
 	printf("DEBUG: %s\n", t);
 #else
+  //Serial.println(t);
 	uint8_t myBuffer[128];
 	const uint8_t ax25_ident[] = { 0x92, 0x88, 0x8a, 0x9c, 0xa8, 0x40, 0xe0, 0x88, 0x8a, 0x84, 0xaa, 0x8e, 0x60, 0x63, 0x03, 0xf0 };
 
@@ -202,6 +203,8 @@ void kiss::processRadio() {
 	bufferBig[o++] = FEND;
 
 	putSerial(bufferBig, o);
+  digitalWrite(pinLedRecv, LOW);
+
 }
 
 // when a byte comes in via serial, it is expected that a full kiss
@@ -372,6 +375,7 @@ void kiss::processSerial() {
 
 	debug(buf);
   radioFrequency(qrgRX);
+  digitalWrite(pinLedSend, LOW);
 }
 
 void kiss::loop() {

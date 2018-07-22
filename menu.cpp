@@ -32,7 +32,8 @@ float MENU::get_tx() {
 
 void MENU::execute() {
   int my = 9;
-  while(true) {
+  bool myloop = true;
+  while(myloop) {
     Serial.println("");
     Serial.println("");
     Serial.println("|-----------------------------------------------------|");
@@ -41,8 +42,9 @@ void MENU::execute() {
     switch (my) {
       case '0':
         Serial.println("Starting KISS-Mode...");
-        Serial.println("Press Enter 4 times, to go back to menu.");
+        Serial.println("Press zero (0) 4 times, to go back to menu.");
         Serial.println("");
+        myloop = false;
         return;
         break;
       case '1':
